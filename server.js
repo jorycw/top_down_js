@@ -1,55 +1,87 @@
-// Dependencies
 var express = require('express');
-var http = require('http');
-var path = require('path');
-var socketIO = require('socket.io');
-
 var app = express();
-var server = http.Server(app);
-var io = socketIO(server);
-
-app.set('port', 5000);
-app.use('/static', express.static(__dirname + '/static'));
-
-// Routing
-app.get('/', function(request, response) {
-  response.sendFile(path.join(__dirname, 'index.html'));
+var serv = require('http').Server(app);
+ 
+app.get('/',function(req, res) {
+    res.sendFile(__dirname + '/client/index.html');
 });
-
-// Starts the server.
-server.listen(5000, function() {
-  console.log('Starting server on port 5000');
+app.use('/client',express.static(__dirname + '/client'));
+ 
+serv.listen(2000);
+console.log("Server started.");
+ 
+var SOCKET_LIST = {};
+var PLAYER_LIST = {};
+ 
+var Player = function(id){
+    var self = {
+        x:250,
+        y:250,
+        id:id,
+        number:"" + Math.floor(10 * Math.random()),
+        pressingRight:false,
+        pressingLeft:false,
+        pressingUp:false,
+        pressingDown:false,
+        maxSpd:10,
+    }
+    self.updatePosition = function(){
+        if(self.pressingRight)
+            self.x += self.maxSpd;
+        if(self.pressingLeft)
+            self.x -= self.maxSpd;
+        if(self.pressingUp)
+            self.y -= self.maxSpd;
+        if(self.pressingDown)
+            self.y += self.maxSpd;
+    }
+    return self;
+}
+ 
+var io = require('socket.io')(serv,{});
+io.sockets.on('connection', function(socket){
+    socket.id = Math.random();
+    SOCKET_LIST[socket.id] = socket;
+ 
+    var player = Player(socket.id);
+    PLAYER_LIST[socket.id] = player;
+   
+    socket.on('disconnect',function(){
+        delete SOCKET_LIST[socket.id];
+        delete PLAYER_LIST[socket.id];
+    });
+   
+    socket.on('keyPress',function(data){
+        if(data.inputId === 'left')
+            player.pressingLeft = data.state;
+        else if(data.inputId === 'right')
+            player.pressingRight = data.state;
+        else if(data.inputId === 'up')
+            player.pressingUp = data.state;
+        else if(data.inputId === 'down')
+            player.pressingDown = data.state;
+    });
+   
+   
 });
  
-// Add the WebSocket handlers
-io.on('connection', function(socket) {
-});
-
-var players = {};
-io.on('connection', function(socket) {
-  socket.on('new player', function() {
-    players[socket.id] = {
-      x: 300,
-      y: 300
-    };
-  });
-  socket.on('movement', function(data) {
-    var player = players[socket.id] || {};
-    if (data.left) {
-      player.x -= 5;
+setInterval(function(){
+    var pack = [];
+    for(var i in PLAYER_LIST){
+        var player = PLAYER_LIST[i];
+        player.updatePosition();
+        pack.push({
+            x:player.x,
+            y:player.y,
+            number:player.number
+        });    
     }
-    if (data.up) {
-      player.y -= 5;
+    for(var i in SOCKET_LIST){
+        var socket = SOCKET_LIST[i];
+        socket.emit('newPositions',pack);
     }
-    if (data.right) {
-      player.x += 5;
-    }
-    if (data.down) {
-      player.y += 5;
-    }
-  });
-});
-
-setInterval(function() {
-  io.sockets.emit('state', players);
-}, 1000 / 60);
+   
+   
+   
+   
+},1000/25);
