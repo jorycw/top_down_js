@@ -1,46 +1,36 @@
 var socket = io();
-socket.on('message', function(data) {
-  console.log(data);
-});
 
-var movement = {
-  up: false,
-  down: false,
-  left: false,
-  right: false
-}
-document.addEventListener('keydown', function(event) {
+document.onkeydown = function(event) {
   switch (event.keyCode) {
     case 65: // A
-      movement.left = true;
-      break;
+      socket.emit('keyPress', {inputId:left, state:true});
+        break;
     case 87: // W
-      movement.up = true;
-      break;
+        socket.emit('keyPress', {inputId:up, state:true});
+        break;
     case 68: // D
-      movement.right = true;
+      socket.emit('keyPress', {inputId:right, state:true});
       break;
     case 83: // S
-      movement.down = true;
-      break;
-  }
-});
-document.addEventListener('keyup', function(event) {
+      socket.emit('keyPress', {inputId:down, state:true});
+    break;
+ }
+
+document.onkeyup = function(event) {
   switch (event.keyCode) {
     case 65: // A
-      movement.left = false;
-      break;
+      socket.emit('keyPress', {inputId:left, state:false});
+        break;
     case 87: // W
-      movement.up = false;
-      break;
+        socket.emit('keyPress', {inputId:up, state:false});
+        break;
     case 68: // D
-      movement.right = false;
+      socket.emit('keyPress', {inputId:right, state:false});
       break;
     case 83: // S
-      movement.down = false;
-      break;
-  }
-});
+      socket.emit('keyPress', {inputId:down, state:false});
+    break;
+ }
 
 socket.emit('new player');
 setInterval(function() {
